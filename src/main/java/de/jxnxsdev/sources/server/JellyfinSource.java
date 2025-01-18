@@ -15,7 +15,7 @@ import java.awt.*;
     sourceType = SourceType.SERVER
 )
 @CreateCommandArguments(arguments = {
-    @CreateArgument(name = "url", type = CommandArgumentType.STRING)
+    @CreateArgument(name = "url", type = CommandArgumentType.GREEDY_STRING)
 })
 
 public class JellyfinSource implements IBoilerSource {
@@ -39,4 +39,5 @@ public class JellyfinSource implements IBoilerSource {
         g2.setColor(Color.GRAY);
         g2.drawString("Hello, World!", viewport.x + viewport.width / 2 - 41, viewport.y + viewport.height / 2 + 6);
     }
+
 }
