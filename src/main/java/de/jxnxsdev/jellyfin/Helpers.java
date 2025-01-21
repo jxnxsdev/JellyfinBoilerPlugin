@@ -13,7 +13,6 @@ import java.util.Base64;
 
 public class Helpers {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     /**
      * Validates a given URL by checking its format and sending a test request.
      *
@@ -90,7 +89,14 @@ public class Helpers {
             HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
             if (response.statusCode() != 200) {
-                return null;
+                HttpRequest request2 = HttpRequest.newBuilder()
+                        .uri(URI.create(url + "/web/assets/img/banner-light.png"))
+                        .GET()
+                        .build();
+
+                HttpResponse<byte[]> response2 = client.send(request2, HttpResponse.BodyHandlers.ofByteArray());
+
+                return Base64.getEncoder().encodeToString(response2.body());
             }
 
             return Base64.getEncoder().encodeToString(response.body());

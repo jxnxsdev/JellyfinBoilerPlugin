@@ -213,6 +213,8 @@ public class JellyfinSource implements IBoilerSource {
             return;
         }
 
+        userViewsResponse.items.removeIf(view -> !view.type.equals("tvshows") && !view.type.equals("movies"));
+
         // Title
         JLabel titleLabel = new JLabel("Select a Video Library");
         titleLabel.setFont(new Font("Arial", Font.BOLD, dimension.height / 20)); // Scaled title size
@@ -253,7 +255,7 @@ public class JellyfinSource implements IBoilerSource {
         libraryTitle.setFont(new Font("Arial", Font.BOLD, dimension.height / 30)); // Scaled dynamically
         libraryTitle.setForeground(textColor);
         libraryTitle.setHorizontalAlignment(SwingConstants.CENTER);
-        libraryTitle.setBounds(0, dimension.height / 4 + imageHeight + 10, dimension.width, dimension.height / 30);
+        libraryTitle.setBounds(0, dimension.height - (dimension.height / 8) - selButtonHeight - 30, dimension.width, dimension.height / 30);
 
         // Button Panel
         int buttonWidth = dimension.width / 10;

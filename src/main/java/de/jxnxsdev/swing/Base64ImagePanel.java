@@ -42,7 +42,6 @@ public class Base64ImagePanel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        // Draw the image if it's loaded
         if (image != null) {
             g.drawImage(image, 0, 0, getWidth(), getHeight(), this);
         }
