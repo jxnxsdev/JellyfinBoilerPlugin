@@ -2,7 +2,11 @@ package de.jxnxsdev.sources.server;
 
 import com.google.gson.JsonObject;
 import de.jxnxsdev.jellyfin.Helpers;
+import de.jxnxsdev.jellyfin.User;
+import de.jxnxsdev.jellyfin.responses.AuthenticateByNameResponse;
 import de.jxnxsdev.jellyfin.responses.SystemInfoPublicResponse;
+import de.jxnxsdev.jellyfin.responses.UserViewsResponse;
+import de.jxnxsdev.swing.Base64ImagePanel;
 import net.somewhatcity.boiler.api.CreateArgument;
 import net.somewhatcity.boiler.api.CreateCommandArguments;
 import net.somewhatcity.boiler.api.IBoilerSource;
@@ -11,8 +15,6 @@ import net.somewhatcity.boiler.api.display.IBoilerDisplay;
 import net.somewhatcity.boiler.api.util.CommandArgumentType;
 import net.somewhatcity.boiler.api.util.SourceType;
 import org.bukkit.command.CommandSender;
-import org.jellyfin.sdk.Jellyfin;
-import org.jellyfin.sdk.api.client.ApiClient;
 
 
 import javax.swing.*;
@@ -34,7 +36,6 @@ import java.time.Duration;
 })
 
 public class JellyfinSource implements IBoilerSource {
-    private Jellyfin jellyfin;
 
     private JPanel panel = new JPanel();
     private Point lastClick;
@@ -92,6 +93,8 @@ public class JellyfinSource implements IBoilerSource {
     private void DrawLogin(IBoilerDisplay display, JsonObject jsonObject, SystemInfoPublicResponse systemInfoPublicResponse) {
         Dimension dimension = new Dimension(display.width(), display.height());
 
+        panel.removeAll();
+
         panel.setSize(dimension);
         panel.setMinimumSize(dimension);
         panel.setMaximumSize(dimension);
@@ -99,7 +102,6 @@ public class JellyfinSource implements IBoilerSource {
 
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-        // Set Jellyfin dark theme colors
         Color backgroundColor = new Color(0x101010);
         Color textColor = Color.WHITE;
         Color inputBackgroundColor = new Color(0x2c2c2c);
@@ -107,7 +109,6 @@ public class JellyfinSource implements IBoilerSource {
 
         panel.setBackground(backgroundColor);
 
-        // Create components
         JLabel titleLabel = new JLabel("Login to your Jellyfin Account");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
         titleLabel.setForeground(textColor);
@@ -142,12 +143,13 @@ public class JellyfinSource implements IBoilerSource {
         loginButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         loginButton.setMaximumSize(new Dimension(100, 30));
 
-        JLabel statusLabel = new JLabel(" ");
+        JLabel statusLabel = new JLabel("Please enter your username and password");
         statusLabel.setForeground(Color.RED);
         statusLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         statusLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        statusLabel.setSize(new Dimension(400, 30));
+        statusLabel.setMaximumSize(new Dimension(400, 30));
 
-        // Add components to the panel
         panel.add(Box.createVerticalGlue());
         panel.add(titleLabel);
         panel.add(Box.createRigidArea(new Dimension(0, 20)));
@@ -162,12 +164,10 @@ public class JellyfinSource implements IBoilerSource {
         panel.add(statusLabel);
         panel.add(Box.createVerticalGlue());
 
-        // Style components
         loginButton.setBackground(buttonColor);
         loginButton.setForeground(textColor);
         loginButton.setFocusPainted(false);
 
-        // Add action listener to the login button
         loginButton.addActionListener(e -> {
             String username = usernameField.getText();
             String password = new String(passwordField.getPassword());
@@ -177,17 +177,155 @@ public class JellyfinSource implements IBoilerSource {
                 return;
             }
 
-            // Perform login
-            System.out.println("Logging in with username: " + username + " and password: " + password);
+            AuthenticateByNameResponse authenticateByNameResponse = User.authenticateByName(jsonObject.get("url").getAsString(), username, password);
+
+            if (authenticateByNameResponse == null) {
+                statusLabel.setText("Failed to authenticate user");
+                return;
+            }
+
+            DrawViews(display, jsonObject, systemInfoPublicResponse, authenticateByNameResponse);
         });
 
         panel.doLayout();
         panel.validate();
     }
 
+    private int currentView = 0;
+
+    private void DrawViews(IBoilerDisplay display, JsonObject jsonObject, SystemInfoPublicResponse systemInfoPublicResponse, AuthenticateByNameResponse authenticateByNameResponse) {
+        Dimension dimension = new Dimension(display.width(), display.height());
+        panel.removeAll();
+        panel.setSize(dimension);
+        panel.setPreferredSize(dimension);
+        panel.setBackground(new Color(0x101010));
+
+        Color textColor = Color.WHITE;
+        Color buttonColor = new Color(0x00a4dc);
+
+        UserViewsResponse userViewsResponse = User.getUserViews(jsonObject.get("url").getAsString(), authenticateByNameResponse);
+        if (userViewsResponse == null) {
+            JLabel errorLabel = new JLabel("This user/server does not have access to any video libraries");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        // Title
+        JLabel titleLabel = new JLabel("Select a Video Library");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, dimension.height / 20)); // Scaled title size
+        titleLabel.setForeground(textColor);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        titleLabel.setBounds(0, 20, dimension.width, dimension.height / 20);
+
+        // Cover Image
+        int imageWidth = dimension.width / 3; // Image width is 1/3 of panel width
+        int imageHeight = (int) (imageWidth * 1.5); // Maintain 2:3 aspect ratio
+        Base64ImagePanel coverImage = new Base64ImagePanel(
+                Helpers.getImage(jsonObject.get("url").getAsString(), userViewsResponse.items.get(currentView).id, 200, 200, "90")
+        );
+        coverImage.setBounds((dimension.width - imageWidth) / 2, dimension.height / 4, imageWidth, imageHeight / 2 - 30);
+
+        // Ensure the image panel's size matches its bounds
+        coverImage.setPreferredSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMaximumSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMinimumSize(new Dimension(imageWidth, imageHeight));
+
+        // set the button width to the image width
+        int selButtonWidth = imageWidth;
+        int selButtonHeight = dimension.height / 25;
+        int selButtonY = dimension.height - (dimension.height / 8) - selButtonHeight - 10;
+
+        JButton selectButton = new JButton("Select Libary");
+        selectButton.setBackground(buttonColor);
+        selectButton.setForeground(textColor);
+        selectButton.setFocusPainted(false);
+        selectButton.setBounds((dimension.width / 2) - (selButtonWidth / 2), selButtonY, selButtonWidth, selButtonHeight);
+
+        selectButton.addActionListener(e -> {
+            System.out.println("Selected library: " + userViewsResponse.items.get(currentView).name);
+        });
+
+        // Library Title
+        JLabel libraryTitle = new JLabel(userViewsResponse.items.get(currentView).name);
+        libraryTitle.setFont(new Font("Arial", Font.BOLD, dimension.height / 30)); // Scaled dynamically
+        libraryTitle.setForeground(textColor);
+        libraryTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        libraryTitle.setBounds(0, dimension.height / 4 + imageHeight + 10, dimension.width, dimension.height / 30);
+
+        // Button Panel
+        int buttonWidth = dimension.width / 10;
+        int buttonHeight = dimension.height / 25;
+        int buttonY = dimension.height - (dimension.height / 8);
+
+        JButton backButton = new JButton("Back");
+        backButton.setBackground(buttonColor);
+        backButton.setForeground(textColor);
+        backButton.setFocusPainted(false);
+        backButton.setBounds(dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        JLabel pageNumber = new JLabel((currentView + 1) + " / " + userViewsResponse.items.size());
+        pageNumber.setForeground(textColor);
+        pageNumber.setFont(new Font("Arial", Font.PLAIN, dimension.height / 40));
+        pageNumber.setHorizontalAlignment(SwingConstants.CENTER);
+        pageNumber.setBounds((dimension.width - 100) / 2, buttonY, 100, buttonHeight);
+
+        JButton nextButton = new JButton("Next");
+        nextButton.setBackground(buttonColor);
+        nextButton.setForeground(textColor);
+        nextButton.setFocusPainted(false);
+        nextButton.setBounds(3 * dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        backButton.addActionListener(e -> {
+            if (currentView > 0) {
+                currentView--;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), userViewsResponse.items.get(currentView).id, 400, 600, "90"));
+                libraryTitle.setText(userViewsResponse.items.get(currentView).name);
+                pageNumber.setText((currentView + 1) + " / " + userViewsResponse.items.size());
+            }
+        });
+
+        nextButton.addActionListener(e -> {
+            if (currentView < userViewsResponse.items.size() - 1) {
+                currentView++;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), userViewsResponse.items.get(currentView).id, 400, 600, "90"));
+                libraryTitle.setText(userViewsResponse.items.get(currentView).name);
+                pageNumber.setText((currentView + 1) + " / " + userViewsResponse.items.size());
+            }
+        });
+
+        // Add components to the panel
+        panel.setLayout(null); // Use absolute positioning
+        panel.add(titleLabel);
+        panel.add(coverImage);
+        panel.add(selectButton);
+        panel.add(libraryTitle);
+        panel.add(backButton);
+        panel.add(pageNumber);
+        panel.add(nextButton);
+
+        panel.revalidate();
+        panel.repaint();
+    }
+
+
+    private Component lastComponent;
+
     @Override
     public void onClick(CommandSender sender, int x, int y, boolean right) {
         Component clicked = panel.getComponentAt(x, y);
+
+        if(clicked instanceof JTextField || clicked instanceof JPasswordField) {
+            clicked.setBackground(Color.darkGray);
+            if(lastComponent != null && lastComponent != clicked) {
+                lastComponent.setBackground(new Color(0x2c2c2c));
+            }
+
+            lastComponent = clicked;
+        }
+
         lastClick = new Point(x, y);
 
         if(clicked instanceof JButton button) {

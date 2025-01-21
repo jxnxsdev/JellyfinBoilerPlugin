@@ -30,7 +30,8 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.15.2") // Annotations for JSON
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.2") // Java 8 Date/Time support
 
-    implementation("org.jellyfin.sdk:jellyfin-core:1.6.3")
+    compileOnly ("org.projectlombok:lombok:1.18.36")
+    annotationProcessor ("org.projectlombok:lombok:1.18.36")
 
 }
 

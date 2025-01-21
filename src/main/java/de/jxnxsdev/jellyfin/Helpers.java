@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Base64;
 
 public class Helpers {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -73,4 +74,30 @@ public class Helpers {
             return null;
         }
     }
+
+    public static String getImage(String url, String id, int width, int height, String quality) {
+
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url + "/Items/" + id + "/Images/Primary?fillHeight=" + height + "&fillWidth=" + width + "&quality=" + quality))
+                    .GET()
+                    .build();
+
+            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+
+            if (response.statusCode() != 200) {
+                return null;
+            }
+
+            return Base64.getEncoder().encodeToString(response.body());
+        } catch (IOException | InterruptedException e) {
+            return null;
+        }
+
+    }
+
 }
