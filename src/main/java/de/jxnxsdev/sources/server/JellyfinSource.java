@@ -215,14 +215,12 @@ public class JellyfinSource implements IBoilerSource {
 
         userViewsResponse.items.removeIf(view -> !view.type.equals("tvshows") && !view.type.equals("movies"));
 
-        // Title
         JLabel titleLabel = new JLabel("Select a Video Library");
         titleLabel.setFont(new Font("Arial", Font.BOLD, dimension.height / 20)); // Scaled title size
         titleLabel.setForeground(textColor);
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         titleLabel.setBounds(0, 20, dimension.width, dimension.height / 20);
 
-        // Cover Image
         int imageWidth = dimension.width / 3; // Image width is 1/3 of panel width
         int imageHeight = (int) (imageWidth * 1.5); // Maintain 2:3 aspect ratio
         Base64ImagePanel coverImage = new Base64ImagePanel(
@@ -230,12 +228,10 @@ public class JellyfinSource implements IBoilerSource {
         );
         coverImage.setBounds((dimension.width - imageWidth) / 2, dimension.height / 4, imageWidth, imageHeight / 2 - 30);
 
-        // Ensure the image panel's size matches its bounds
         coverImage.setPreferredSize(new Dimension(imageWidth, imageHeight));
         coverImage.setMaximumSize(new Dimension(imageWidth, imageHeight));
         coverImage.setMinimumSize(new Dimension(imageWidth, imageHeight));
 
-        // set the button width to the image width
         int selButtonWidth = imageWidth;
         int selButtonHeight = dimension.height / 25;
         int selButtonY = dimension.height - (dimension.height / 8) - selButtonHeight - 10;
@@ -250,14 +246,12 @@ public class JellyfinSource implements IBoilerSource {
             System.out.println("Selected library: " + userViewsResponse.items.get(currentView).name);
         });
 
-        // Library Title
         JLabel libraryTitle = new JLabel(userViewsResponse.items.get(currentView).name);
         libraryTitle.setFont(new Font("Arial", Font.BOLD, dimension.height / 30)); // Scaled dynamically
         libraryTitle.setForeground(textColor);
         libraryTitle.setHorizontalAlignment(SwingConstants.CENTER);
         libraryTitle.setBounds(0, dimension.height - (dimension.height / 8) - selButtonHeight - 30, dimension.width, dimension.height / 30);
 
-        // Button Panel
         int buttonWidth = dimension.width / 10;
         int buttonHeight = dimension.height / 25;
         int buttonY = dimension.height - (dimension.height / 8);
@@ -298,8 +292,7 @@ public class JellyfinSource implements IBoilerSource {
             }
         });
 
-        // Add components to the panel
-        panel.setLayout(null); // Use absolute positioning
+        panel.setLayout(null);
         panel.add(titleLabel);
         panel.add(coverImage);
         panel.add(selectButton);
