@@ -2,6 +2,7 @@ package de.jxnxsdev.jellyfin;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.jxnxsdev.jellyfin.responses.AuthenticateByNameResponse;
+import de.jxnxsdev.jellyfin.responses.UserItemsResponse;
 import de.jxnxsdev.jellyfin.responses.UserViewsResponse;
 
 import java.io.IOException;
@@ -73,6 +74,66 @@ public class User {
             System.out.println("Got user views");
 
             return OBJECT_MAPPER.readValue(response.body(), UserViewsResponse.class);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static UserItemsResponse getUserItemsMovies (String url, AuthenticateByNameResponse authenticateByNameResponse, String viewId) {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url + "/Users/" + authenticateByNameResponse.user.id + "/Items?Recursive=true&IncludeItemTypes=Movie&ParentId=" + viewId))
+                    .header("User-Agent", Headers.UserViewsHeaders.user_agent)
+                    .header("Accept", Headers.UserViewsHeaders.accept)
+                    .header("X-Emby-Authorization", Headers.UserViewsHeaders.create_x_emby_authorization(authenticateByNameResponse))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                System.out.println("Failed to get user items: " + response.statusCode());
+                return null;
+            }
+
+            System.out.println("Got user items");
+
+            return OBJECT_MAPPER.readValue(response.body(), UserItemsResponse.class);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static UserItemsResponse getUserItemsShows (String url, AuthenticateByNameResponse authenticateByNameResponse, String viewId) {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url + "/Users/" + authenticateByNameResponse.user.id + "/Items?Recursive=true&IncludeItemTypes=Series&ParentId=" + viewId))
+                    .header("User-Agent", Headers.UserViewsHeaders.user_agent)
+                    .header("Accept", Headers.UserViewsHeaders.accept)
+                    .header("X-Emby-Authorization", Headers.UserViewsHeaders.create_x_emby_authorization(authenticateByNameResponse))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                System.out.println("Failed to get user items: " + response.statusCode());
+                return null;
+            }
+
+            System.out.println("Got user items");
+
+            return OBJECT_MAPPER.readValue(response.body(), UserItemsResponse.class);
 
         } catch (Exception e) {
             throw new RuntimeException(e);

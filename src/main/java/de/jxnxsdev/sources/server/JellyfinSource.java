@@ -2,10 +2,9 @@ package de.jxnxsdev.sources.server;
 
 import com.google.gson.JsonObject;
 import de.jxnxsdev.jellyfin.Helpers;
+import de.jxnxsdev.jellyfin.Shows;
 import de.jxnxsdev.jellyfin.User;
-import de.jxnxsdev.jellyfin.responses.AuthenticateByNameResponse;
-import de.jxnxsdev.jellyfin.responses.SystemInfoPublicResponse;
-import de.jxnxsdev.jellyfin.responses.UserViewsResponse;
+import de.jxnxsdev.jellyfin.responses.*;
 import de.jxnxsdev.swing.Base64ImagePanel;
 import net.somewhatcity.boiler.api.CreateArgument;
 import net.somewhatcity.boiler.api.CreateCommandArguments;
@@ -194,6 +193,7 @@ public class JellyfinSource implements IBoilerSource {
     private int currentView = 0;
 
     private void DrawViews(IBoilerDisplay display, JsonObject jsonObject, SystemInfoPublicResponse systemInfoPublicResponse, AuthenticateByNameResponse authenticateByNameResponse) {
+        currentView = 0;
         Dimension dimension = new Dimension(display.width(), display.height());
         panel.removeAll();
         panel.setSize(dimension);
@@ -204,8 +204,9 @@ public class JellyfinSource implements IBoilerSource {
         Color buttonColor = new Color(0x00a4dc);
 
         UserViewsResponse userViewsResponse = User.getUserViews(jsonObject.get("url").getAsString(), authenticateByNameResponse);
+
         if (userViewsResponse == null) {
-            JLabel errorLabel = new JLabel("This user/server does not have access to any video libraries");
+            JLabel errorLabel = new JLabel("Failed to retrieve user views");
             errorLabel.setForeground(Color.RED);
             errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
             errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
@@ -213,7 +214,16 @@ public class JellyfinSource implements IBoilerSource {
             return;
         }
 
-        userViewsResponse.items.removeIf(view -> !view.type.equals("tvshows") && !view.type.equals("movies"));
+        userViewsResponse.items.removeIf(view -> !view.collectionType.equals("tvshows") && !view.collectionType.equals("movies"));
+
+        if (userViewsResponse.items.isEmpty()) {
+            JLabel errorLabel = new JLabel("This user/server does not have access to any video libraries");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
 
         JLabel titleLabel = new JLabel("Select a Video Library");
         titleLabel.setFont(new Font("Arial", Font.BOLD, dimension.height / 20)); // Scaled title size
@@ -243,7 +253,11 @@ public class JellyfinSource implements IBoilerSource {
         selectButton.setBounds((dimension.width / 2) - (selButtonWidth / 2), selButtonY, selButtonWidth, selButtonHeight);
 
         selectButton.addActionListener(e -> {
-            System.out.println("Selected library: " + userViewsResponse.items.get(currentView).name);
+            if (userViewsResponse.items.get(currentView).collectionType.equals("tvshows")) {
+                DrawItemsTVShows(display, jsonObject, systemInfoPublicResponse, authenticateByNameResponse, userViewsResponse.items.get(currentView).id);
+            } else if (userViewsResponse.items.get(currentView).collectionType.equals("movies")) {
+                DrawItemsMovies(display, jsonObject, systemInfoPublicResponse, authenticateByNameResponse, userViewsResponse.items.get(currentView).id);
+            }
         });
 
         JLabel libraryTitle = new JLabel(userViewsResponse.items.get(currentView).name);
@@ -303,6 +317,386 @@ public class JellyfinSource implements IBoilerSource {
 
         panel.revalidate();
         panel.repaint();
+    }
+
+    private int currentPage = 0;
+
+    private void DrawItemsMovies(IBoilerDisplay display, JsonObject jsonObject, SystemInfoPublicResponse systemInfoPublicResponse, AuthenticateByNameResponse authenticateByNameResponse, String viewId) {
+        currentPage = 0;
+
+        Dimension dimension = new Dimension(display.width(), display.height());
+        panel.removeAll();
+        panel.setSize(dimension);
+        panel.setPreferredSize(dimension);
+        panel.setBackground(new Color(0x101010));
+
+        Color textColor = Color.WHITE;
+        Color buttonColor = new Color(0x00a4dc);
+
+        UserItemsResponse userItemsResponse = User.getUserItemsMovies(jsonObject.get("url").getAsString(), authenticateByNameResponse, viewId);
+
+        if (userItemsResponse == null) {
+            JLabel errorLabel = new JLabel("Failed to retrieve user items");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        userItemsResponse.items.removeIf(item -> !item.type.equalsIgnoreCase("movie"));
+
+        if (userItemsResponse.items.isEmpty()) {
+            JLabel errorLabel = new JLabel("This libary does not contain any movies");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        JLabel titleLabel = new JLabel("Select a Movie");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, dimension.height / 20)); // Scaled title size
+        titleLabel.setForeground(textColor);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        titleLabel.setBounds(0, 20, dimension.width, dimension.height / 20);
+
+        int imageWidth = dimension.width / 3; // Image width is 1/3 of panel width
+        int imageHeight = (int) (imageWidth * 1.5); // Maintain 2:3 aspect ratio
+
+        Base64ImagePanel coverImage = new Base64ImagePanel(
+                Helpers.getImage(jsonObject.get("url").getAsString(), userItemsResponse.items.get(0).id, 200, 200, "90")
+        );
+        coverImage.setBounds((dimension.width - imageWidth) / 2, dimension.height / 4, imageWidth, imageHeight / 2 - 30);
+
+        coverImage.setPreferredSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMaximumSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMinimumSize(new Dimension(imageWidth, imageHeight));
+
+        int selButtonWidth = imageWidth;
+        int selButtonHeight = dimension.height / 25;
+        int selButtonY = dimension.height - (dimension.height / 8) - selButtonHeight - 10;
+
+        JButton selectButton = new JButton("Play Movie");
+        selectButton.setBackground(buttonColor);
+        selectButton.setForeground(textColor);
+        selectButton.setFocusPainted(false);
+        selectButton.setBounds((dimension.width / 2) - (selButtonWidth / 2), selButtonY, selButtonWidth, selButtonHeight);
+
+        selectButton.addActionListener(e -> {
+            System.out.println("Selected movie: " + userItemsResponse.items.get(currentPage).name);
+        });
+
+        JLabel movieTitle = new JLabel(userItemsResponse.items.get(0).name);
+        movieTitle.setFont(new Font("Arial", Font.BOLD, dimension.height / 30)); // Scaled dynamically
+        movieTitle.setForeground(textColor);
+        movieTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        movieTitle.setBounds(0, dimension.height - (dimension.height / 8) - selButtonHeight - 30, dimension.width, dimension.height / 30);
+
+        int buttonWidth = dimension.width / 10;
+        int buttonHeight = dimension.height / 25;
+        int buttonY = dimension.height - (dimension.height / 8);
+
+        JButton backButton = new JButton("Back");
+        backButton.setBackground(buttonColor);
+        backButton.setForeground(textColor);
+        backButton.setFocusPainted(false);
+        backButton.setBounds(dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        JLabel pageNumber = new JLabel((currentPage + 1) + " / " + userItemsResponse.items.size());
+        pageNumber.setForeground(textColor);
+        pageNumber.setFont(new Font("Arial", Font.PLAIN, dimension.height / 40));
+        pageNumber.setHorizontalAlignment(SwingConstants.CENTER);
+        pageNumber.setBounds((dimension.width - 100) / 2, buttonY, 100, buttonHeight);
+
+        JButton nextButton = new JButton("Next");
+        nextButton.setBackground(buttonColor);
+        nextButton.setForeground(textColor);
+        nextButton.setFocusPainted(false);
+        nextButton.setBounds(3 * dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        backButton.addActionListener(e -> {
+            if (currentPage > 0) {
+                currentPage--;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), userItemsResponse.items.get(currentPage).id, 400, 600, "90"));
+                movieTitle.setText(userItemsResponse.items.get(currentPage).name);
+                pageNumber.setText((currentPage + 1) + " / " + userItemsResponse.items.size());
+            }
+        });
+
+        nextButton.addActionListener(e -> {
+            if (currentPage < userItemsResponse.items.size() - 1) {
+                currentPage++;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), userItemsResponse.items.get(currentPage).id, 400, 600, "90"));
+                movieTitle.setText(userItemsResponse.items.get(currentPage).name);
+                pageNumber.setText((currentPage + 1) + " / " + userItemsResponse.items.size());
+            }
+        });
+
+        panel.setLayout(null);
+        panel.add(titleLabel);
+        panel.add(coverImage);
+        panel.add(selectButton);
+        panel.add(movieTitle);
+        panel.add(backButton);
+        panel.add(pageNumber);
+        panel.add(nextButton);
+
+        panel.revalidate();
+        panel.repaint();
+
+    }
+
+    private void DrawItemsTVShows (IBoilerDisplay display, JsonObject jsonObject, SystemInfoPublicResponse systemInfoPublicResponse, AuthenticateByNameResponse authenticateByNameResponse, String viewId) {
+        currentPage = 0;
+
+        Dimension dimension = new Dimension(display.width(), display.height());
+        panel.removeAll();
+        panel.setSize(dimension);
+        panel.setPreferredSize(dimension);
+        panel.setBackground(new Color(0x101010));
+
+        Color textColor = Color.WHITE;
+        Color buttonColor = new Color(0x00a4dc);
+
+        UserItemsResponse userItemsResponse = User.getUserItemsShows(jsonObject.get("url").getAsString(), authenticateByNameResponse, viewId);
+
+        if (userItemsResponse == null) {
+            JLabel errorLabel = new JLabel("Failed to retrieve user items");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        userItemsResponse.items.removeIf(item -> !item.type.equalsIgnoreCase("series"));
+
+        if (userItemsResponse.items.isEmpty()) {
+            JLabel errorLabel = new JLabel("This libary does not contain any TV Shows");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        JLabel titleLabel = new JLabel("Select a TV Show");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, dimension.height / 20)); // Scaled title size
+        titleLabel.setForeground(textColor);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        titleLabel.setBounds(0, 20, dimension.width, dimension.height / 20);
+
+        int imageWidth = dimension.width / 3; // Image width is 1/3 of panel width
+        int imageHeight = (int) (imageWidth * 1.5); // Maintain 2:3 aspect ratio
+
+        Base64ImagePanel coverImage = new Base64ImagePanel(
+                Helpers.getImage(jsonObject.get("url").getAsString(), userItemsResponse.items.get(0).id, 200, 200, "90")
+        );
+        coverImage.setBounds((dimension.width - imageWidth * 2) / 2, dimension.height / 4, imageWidth, imageHeight / 2 - 30);
+
+        coverImage.setPreferredSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMaximumSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMinimumSize(new Dimension(imageWidth, imageHeight));
+
+        int selButtonWidth = imageWidth;
+        int selButtonHeight = dimension.height / 25;
+        int selButtonY = dimension.height - (dimension.height / 8) - selButtonHeight - 10;
+
+        JButton selectButton = new JButton("Select TV Show");
+        selectButton.setBackground(buttonColor);
+        selectButton.setForeground(textColor);
+        selectButton.setFocusPainted(false);
+        selectButton.setBounds((dimension.width / 2) - (selButtonWidth / 2), selButtonY, selButtonWidth, selButtonHeight);
+
+        selectButton.addActionListener(e -> {
+            DrawSeasons(display, jsonObject, systemInfoPublicResponse, authenticateByNameResponse, userItemsResponse.items.get(currentPage).id);
+        });
+
+        JLabel tvShowTitle = new JLabel(userItemsResponse.items.get(0).name);
+        tvShowTitle.setFont(new Font("Arial", Font.BOLD, dimension.height / 30)); // Scaled dynamically
+        tvShowTitle.setForeground(textColor);
+        tvShowTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        tvShowTitle.setBounds(0, dimension.height - (dimension.height / 8) - selButtonHeight - 30, dimension.width, dimension.height / 30);
+
+        int buttonWidth = dimension.width / 10;
+        int buttonHeight = dimension.height / 25;
+        int buttonY = dimension.height - (dimension.height / 8);
+
+        JButton backButton = new JButton("Back");
+        backButton.setBackground(buttonColor);
+        backButton.setForeground(textColor);
+        backButton.setFocusPainted(false);
+        backButton.setBounds(dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        JLabel pageNumber = new JLabel((currentPage + 1) + " / " + userItemsResponse.items.size());
+        pageNumber.setForeground(textColor);
+        pageNumber.setFont(new Font("Arial", Font.PLAIN, dimension.height / 40));
+        pageNumber.setHorizontalAlignment(SwingConstants.CENTER);
+        pageNumber.setBounds((dimension.width - 100) / 2, buttonY, 100, buttonHeight);
+
+        JButton nextButton = new JButton("Next");
+        nextButton.setBackground(buttonColor);
+        nextButton.setForeground(textColor);
+        nextButton.setFocusPainted(false);
+        nextButton.setBounds(3 * dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        backButton.addActionListener(e -> {
+            if (currentPage > 0) {
+                currentPage--;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), userItemsResponse.items.get(currentPage).id, 400, 600, "90"));
+                tvShowTitle.setText(userItemsResponse.items.get(currentPage).name);
+                pageNumber.setText((currentPage + 1) + " / " + userItemsResponse.items.size());
+            }
+        });
+
+        nextButton.addActionListener(e -> {
+            if (currentPage < userItemsResponse.items.size() - 1) {
+                currentPage++;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), userItemsResponse.items.get(currentPage).id, 400, 600, "90"));
+                tvShowTitle.setText(userItemsResponse.items.get(currentPage).name);
+                pageNumber.setText((currentPage + 1) + " / " + userItemsResponse.items.size());
+            }
+        });
+
+        panel.setLayout(null);
+        panel.add(titleLabel);
+        panel.add(coverImage);
+        panel.add(selectButton);
+        panel.add(tvShowTitle);
+        panel.add(backButton);
+        panel.add(pageNumber);
+        panel.add(nextButton);
+
+        panel.revalidate();
+        panel.repaint();
+    }
+
+    private int currentSeason = 0;
+
+    private void DrawSeasons (IBoilerDisplay display, JsonObject jsonObject, SystemInfoPublicResponse systemInfoPublicResponse, AuthenticateByNameResponse authenticateByNameResponse, String seriesId) {
+        currentSeason = 0;
+
+        Dimension dimension = new Dimension(display.width(), display.height());
+        panel.removeAll();
+        panel.setSize(dimension);
+        panel.setPreferredSize(dimension);
+        panel.setBackground(new Color(0x101010));
+
+        Color textColor = Color.WHITE;
+        Color buttonColor = new Color(0x00a4dc);
+
+        ShowsSeasonResponse showsSeasonResponse = Shows.getSeasons(jsonObject.get("url").getAsString(), authenticateByNameResponse, seriesId);
+
+        if (showsSeasonResponse == null) {
+            JLabel errorLabel = new JLabel("Failed to retrieve seasons");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        if (showsSeasonResponse.items.isEmpty()) {
+            JLabel errorLabel = new JLabel("This TV Show does not contain any seasons");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        JLabel titleLabel = new JLabel("Select a Season");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, dimension.height / 20)); // Scaled title size
+        titleLabel.setForeground(textColor);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        titleLabel.setBounds(0, 20, dimension.width, dimension.height / 20);
+
+        int imageWidth = dimension.width / 3; // Image width is 1/3 of panel width
+        int imageHeight = (int) (imageWidth * 1.5); // Maintain 2:3 aspect ratio
+
+        Base64ImagePanel coverImage = new Base64ImagePanel(
+                Helpers.getImage(jsonObject.get("url").getAsString(), showsSeasonResponse.items.get(0).id, 200, 200, "90")
+        );
+
+        coverImage.setBounds((dimension.width - imageWidth) / 2, dimension.height / 4, imageWidth, imageHeight / 2 - 30);
+
+        coverImage.setPreferredSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMaximumSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMinimumSize(new Dimension(imageWidth, imageHeight));
+
+        int selButtonWidth = imageWidth;
+        int selButtonHeight = dimension.height / 25;
+        int selButtonY = dimension.height - (dimension.height / 8) - selButtonHeight - 10;
+
+        JButton selectButton = new JButton("Select Season");
+        selectButton.setBackground(buttonColor);
+        selectButton.setForeground(textColor);
+        selectButton.setFocusPainted(false);
+        selectButton.setBounds((dimension.width / 2) - (selButtonWidth / 2), selButtonY, selButtonWidth, selButtonHeight);
+
+        selectButton.addActionListener(e -> {
+            System.out.println("Selected season: " + showsSeasonResponse.items.get(currentSeason).name);
+        });
+
+        JLabel seasonTitle = new JLabel(showsSeasonResponse.items.get(0).name);
+        seasonTitle.setFont(new Font("Arial", Font.BOLD, dimension.height / 30)); // Scaled dynamically
+        seasonTitle.setForeground(textColor);
+        seasonTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        seasonTitle.setBounds(0, dimension.height - (dimension.height / 8) - selButtonHeight - 30, dimension.width, dimension.height / 30);
+
+        int buttonWidth = dimension.width / 10;
+        int buttonHeight = dimension.height / 25;
+        int buttonY = dimension.height - (dimension.height / 8);
+
+        JButton backButton = new JButton("Back");
+        backButton.setBackground(buttonColor);
+        backButton.setForeground(textColor);
+        backButton.setFocusPainted(false);
+        backButton.setBounds(dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        JLabel pageNumber = new JLabel((currentSeason + 1) + " / " + showsSeasonResponse.items.size());
+        pageNumber.setForeground(textColor);
+        pageNumber.setFont(new Font("Arial", Font.PLAIN, dimension.height / 40));
+        pageNumber.setHorizontalAlignment(SwingConstants.CENTER);
+        pageNumber.setBounds((dimension.width - 100) / 2, buttonY, 100, buttonHeight);
+
+        JButton nextButton = new JButton("Next");
+        nextButton.setBackground(buttonColor);
+        nextButton.setForeground(textColor);
+        nextButton.setFocusPainted(false);
+        nextButton.setBounds(3 * dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        backButton.addActionListener(e -> {
+            if (currentSeason > 0) {
+                currentSeason--;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), showsSeasonResponse.items.get(currentSeason).id, 400, 600, "90"));
+                seasonTitle.setText(showsSeasonResponse.items.get(currentSeason).name);
+                pageNumber.setText((currentSeason + 1) + " / " + showsSeasonResponse.items.size());
+            }
+        });
+
+        nextButton.addActionListener(e -> {
+            if (currentSeason < showsSeasonResponse.items.size() - 1) {
+                currentSeason++;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), showsSeasonResponse.items.get(currentSeason).id, 400, 600, "90"));
+                seasonTitle.setText(showsSeasonResponse.items.get(currentSeason).name);
+                pageNumber.setText((currentSeason + 1) + " / " + showsSeasonResponse.items.size());
+            }
+        });
+
+        panel.setLayout(null);
+        panel.add(titleLabel);
+        panel.add(coverImage);
+        panel.add(selectButton);
+        panel.add(seasonTitle);
+        panel.add(backButton);
+        panel.add(pageNumber);
+        panel.add(nextButton);
+
+        panel.revalidate();
+        panel.repaint();
+
     }
 
 
