@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "de.jxnxsdev"
-version = "1.0-SNAPSHOT"
+version = "1.0.0-ReleaseT"
 
 repositories {
     mavenCentral()
