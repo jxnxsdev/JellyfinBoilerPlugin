@@ -33,6 +33,9 @@ dependencies {
     compileOnly ("org.projectlombok:lombok:1.18.36")
     annotationProcessor ("org.projectlombok:lombok:1.18.36")
 
+    compileOnly("org.bytedeco:javacv-platform:1.5.11")
+
+    compileOnly("uk.co.caprica:vlcj:4.5.0")
 }
 
 java {

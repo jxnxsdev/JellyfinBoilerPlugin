@@ -6,10 +6,7 @@ import de.jxnxsdev.jellyfin.Shows;
 import de.jxnxsdev.jellyfin.User;
 import de.jxnxsdev.jellyfin.responses.*;
 import de.jxnxsdev.swing.Base64ImagePanel;
-import net.somewhatcity.boiler.api.CreateArgument;
-import net.somewhatcity.boiler.api.CreateCommandArguments;
-import net.somewhatcity.boiler.api.IBoilerSource;
-import net.somewhatcity.boiler.api.SourceConfig;
+import net.somewhatcity.boiler.api.*;
 import net.somewhatcity.boiler.api.display.IBoilerDisplay;
 import net.somewhatcity.boiler.api.util.CommandArgumentType;
 import net.somewhatcity.boiler.api.util.SourceType;
@@ -384,7 +381,10 @@ public class JellyfinSource implements IBoilerSource {
         selectButton.setBounds((dimension.width / 2) - (selButtonWidth / 2), selButtonY, selButtonWidth, selButtonHeight);
 
         selectButton.addActionListener(e -> {
-            System.out.println("Selected movie: " + userItemsResponse.items.get(currentPage).name);
+            String playerURL = jsonObject.get("url").getAsString() + "/Items/" + userItemsResponse.items.get(currentEpisode).id + "/Download?api_key=" + authenticateByNameResponse.accessToken;
+            JsonObject playerObject = new JsonObject();
+            playerObject.addProperty("videourl", playerURL);
+            display.source("jellyfinplayer", playerObject);
         });
 
         JLabel movieTitle = new JLabel(userItemsResponse.items.get(0).name);
@@ -636,7 +636,7 @@ public class JellyfinSource implements IBoilerSource {
         selectButton.setBounds((dimension.width / 2) - (selButtonWidth / 2), selButtonY, selButtonWidth, selButtonHeight);
 
         selectButton.addActionListener(e -> {
-            System.out.println("Selected season: " + showsSeasonResponse.items.get(currentSeason).name);
+            DrawEpisodes(display, jsonObject, systemInfoPublicResponse, authenticateByNameResponse, seriesId, showsSeasonResponse.items.get(currentSeason).id);
         });
 
         JLabel seasonTitle = new JLabel(showsSeasonResponse.items.get(0).name);
@@ -699,6 +699,134 @@ public class JellyfinSource implements IBoilerSource {
 
     }
 
+    private int currentEpisode = 0;
+
+    private void DrawEpisodes (IBoilerDisplay display, JsonObject jsonObject, SystemInfoPublicResponse systemInfoPublicResponse, AuthenticateByNameResponse authenticateByNameResponse, String seriesId, String seasonId) {
+        currentEpisode = 0;
+
+        Dimension dimension = new Dimension(display.width(), display.height());
+        panel.removeAll();
+        panel.setSize(dimension);
+        panel.setPreferredSize(dimension);
+        panel.setBackground(new Color(0x101010));
+
+        Color textColor = Color.WHITE;
+        Color buttonColor = new Color(0x00a4dc);
+
+        ShowsEpisodesResponse showsEpisodesResponse = Shows.getEpisodes(jsonObject.get("url").getAsString(), authenticateByNameResponse, seriesId, seasonId);
+
+        if (showsEpisodesResponse == null) {
+            JLabel errorLabel = new JLabel("Failed to retrieve episodes");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        if (showsEpisodesResponse.items.isEmpty()) {
+            JLabel errorLabel = new JLabel("This season does not contain any episodes");
+            errorLabel.setForeground(Color.RED);
+            errorLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+            errorLabel.setBounds(dimension.width / 4, dimension.height / 2 - 15, dimension.width / 2, 30); // Centered error message
+            panel.add(errorLabel);
+            return;
+        }
+
+        JLabel titleLabel = new JLabel("Select an Episode");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, dimension.height / 20)); // Scaled title size
+        titleLabel.setForeground(textColor);
+        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        titleLabel.setBounds(0, 20, dimension.width, dimension.height / 20);
+
+        int imageWidth = dimension.width / 3; // Image width is 1/3 of panel width
+        int imageHeight = (int) (imageWidth * 1.5); // Maintain 2:3 aspect ratio
+
+        Base64ImagePanel coverImage = new Base64ImagePanel(
+                Helpers.getImage(jsonObject.get("url").getAsString(), showsEpisodesResponse.items.get(0).id, 200, 200, "90")
+        );
+
+        coverImage.setBounds((dimension.width - imageWidth) / 2, dimension.height / 4, imageWidth, imageHeight / 2 - 30);
+
+        coverImage.setPreferredSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMaximumSize(new Dimension(imageWidth, imageHeight));
+        coverImage.setMinimumSize(new Dimension(imageWidth, imageHeight));
+
+        int selButtonWidth = imageWidth;
+        int selButtonHeight = dimension.height / 25;
+        int selButtonY = dimension.height - (dimension.height / 8) - selButtonHeight - 10;
+
+        JButton selectButton = new JButton("Play Episode");
+        selectButton.setBackground(buttonColor);
+        selectButton.setForeground(textColor);
+        selectButton.setFocusPainted(false);
+        selectButton.setBounds((dimension.width / 2) - (selButtonWidth / 2), selButtonY, selButtonWidth, selButtonHeight);
+
+        selectButton.addActionListener(e -> {
+            String playerURL = jsonObject.get("url").getAsString() + "/Items/" + showsEpisodesResponse.items.get(currentEpisode).id + "/Download?api_key=" + authenticateByNameResponse.accessToken;
+            JsonObject playerObject = new JsonObject();
+            playerObject.addProperty("videourl", playerURL);
+            display.source("jellyfinplayer", playerObject);
+        });
+
+        JLabel episodeTitle = new JLabel(showsEpisodesResponse.items.get(0).name);
+        episodeTitle.setFont(new Font("Arial", Font.BOLD, dimension.height / 30)); // Scaled dynamically
+        episodeTitle.setForeground(textColor);
+        episodeTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        episodeTitle.setBounds(0, dimension.height - (dimension.height / 8) - selButtonHeight - 30, dimension.width, dimension.height / 30);
+
+        int buttonWidth = dimension.width / 10;
+        int buttonHeight = dimension.height / 25;
+        int buttonY = dimension.height - (dimension.height / 8);
+
+        JButton backButton = new JButton("Back");
+        backButton.setBackground(buttonColor);
+        backButton.setForeground(textColor);
+        backButton.setFocusPainted(false);
+        backButton.setBounds(dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        JLabel pageNumber = new JLabel((currentEpisode + 1) + " / " + showsEpisodesResponse.items.size());
+        pageNumber.setForeground(textColor);
+        pageNumber.setFont(new Font("Arial", Font.PLAIN, dimension.height / 40));
+        pageNumber.setHorizontalAlignment(SwingConstants.CENTER);
+        pageNumber.setBounds((dimension.width - 100) / 2, buttonY, 100, buttonHeight);
+
+        JButton nextButton = new JButton("Next");
+        nextButton.setBackground(buttonColor);
+        nextButton.setForeground(textColor);
+        nextButton.setFocusPainted(false);
+        nextButton.setBounds(3 * dimension.width / 4 - buttonWidth / 2, buttonY, buttonWidth, buttonHeight);
+
+        backButton.addActionListener(e -> {
+            if (currentEpisode > 0) {
+                currentEpisode--;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), showsEpisodesResponse.items.get(currentEpisode).id, 400, 600, "90"));
+                episodeTitle.setText(showsEpisodesResponse.items.get(currentEpisode).name);
+                pageNumber.setText((currentEpisode + 1) + " / " + showsEpisodesResponse.items.size());
+            }
+        });
+
+        nextButton.addActionListener(e -> {
+            if (currentEpisode < showsEpisodesResponse.items.size() - 1) {
+                currentEpisode++;
+                coverImage.setImage(Helpers.getImage(jsonObject.get("url").getAsString(), showsEpisodesResponse.items.get(currentEpisode).id, 400, 600, "90"));
+                episodeTitle.setText(showsEpisodesResponse.items.get(currentEpisode).name);
+                pageNumber.setText((currentEpisode + 1) + " / " + showsEpisodesResponse.items.size());
+            }
+        });
+
+        panel.setLayout(null);
+        panel.add(titleLabel);
+        panel.add(coverImage);
+        panel.add(selectButton);
+        panel.add(episodeTitle);
+        panel.add(backButton);
+        panel.add(pageNumber);
+        panel.add(nextButton);
+
+        panel.revalidate();
+        panel.repaint();
+    }
 
     private Component lastComponent;
 
