@@ -13,13 +13,12 @@ import org.bytedeco.javacpp.Loader;
 import java.awt.*;
 import java.io.IOException;
 
-@SourceConfig(
-        sourceType = SourceType.CLIENT
-)
+@SourceConfig(sourceType = SourceType.CLIENT)
 @CreateCommandArguments(arguments = {
         @CreateArgument(name = "videourl", type = CommandArgumentType.GREEDY_STRING)
 })
 public class JellyfinPlayer implements IBoilerSource {
+
     private IBoilerDisplay display;
     private Thread thread;
     private Process ffmpegProcess;
@@ -29,15 +28,13 @@ public class JellyfinPlayer implements IBoilerSource {
         this.display = display;
         String streamOut = display.rtspPublishUrl();
         String sourceUrl = jsonObject.get("videourl").getAsString();
-        String finalSourceUrl = sourceUrl;
-
-
 
         thread = new Thread(() -> {
             String ffmpeg = Loader.load(org.bytedeco.ffmpeg.ffmpeg.class);
 
             String[] args = {
-                    ffmpeg, "-re", "-loglevel", "0", "-i", finalSourceUrl, "-preset", "ultrafast", "-maxrate", "3000k", "-b:v", "2500k", "-bufsize", "600k", "-f", "rtsp", streamOut
+                    ffmpeg, "-re", "-loglevel", "0", "-i", sourceUrl, "-preset", "ultrafast",
+                    "-maxrate", "3000k", "-b:v", "2500k", "-bufsize", "600k", "-f", "rtsp", streamOut
             };
 
             System.out.println(String.join(" ", args));
@@ -48,24 +45,22 @@ public class JellyfinPlayer implements IBoilerSource {
                 pb.inheritIO();
                 ffmpegProcess = pb.start();
                 int exitCode = ffmpegProcess.waitFor();
-                System.out.println("FFmpegProcess finished with exit code: " + exitCode);
+                System.out.println("FFmpeg process finished with exit code: " + exitCode);
             } catch (IOException | InterruptedException e) {
-
+                e.printStackTrace();
             }
         });
 
-
         thread.start();
-
     }
 
     @Override
     public void unload() {
-        if(ffmpegProcess != null) {
+        if (ffmpegProcess != null) {
             ffmpegProcess.destroy();
         }
 
-        if(thread != null) {
+        if (thread != null) {
             thread.interrupt();
         }
     }

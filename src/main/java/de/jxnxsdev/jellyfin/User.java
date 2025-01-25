@@ -35,13 +35,8 @@ public class User {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Failed to authenticate user: " + response.statusCode());
                 return null;
             }
-
-            System.out.println("Authenticated user: " + username);
-
-            System.out.println(response.body());
 
             return OBJECT_MAPPER.readValue(response.body(), AuthenticateByNameResponse.class);
 
@@ -67,11 +62,8 @@ public class User {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Failed to get user views: " + response.statusCode());
                 return null;
             }
-
-            System.out.println("Got user views");
 
             return OBJECT_MAPPER.readValue(response.body(), UserViewsResponse.class);
 
@@ -97,11 +89,8 @@ public class User {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Failed to get user items: " + response.statusCode());
                 return null;
             }
-
-            System.out.println("Got user items");
 
             return OBJECT_MAPPER.readValue(response.body(), UserItemsResponse.class);
 
@@ -127,11 +116,8 @@ public class User {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Failed to get user items: " + response.statusCode());
                 return null;
             }
-
-            System.out.println("Got user items");
 
             return OBJECT_MAPPER.readValue(response.body(), UserItemsResponse.class);
 

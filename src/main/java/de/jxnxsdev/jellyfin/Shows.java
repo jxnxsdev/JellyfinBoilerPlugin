@@ -31,11 +31,8 @@ public class Shows {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Failed to get seasons: " + response.statusCode());
                 return null;
             }
-
-            System.out.println(response.body());
 
             return OBJECT_MAPPER.readValue(response.body(), ShowsSeasonResponse.class);
 
@@ -61,11 +58,8 @@ public class Shows {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Failed to get episodes: " + response.statusCode());
                 return null;
             }
-
-            System.out.println(response.body());
 
             return OBJECT_MAPPER.readValue(response.body(), ShowsEpisodesResponse.class);
 

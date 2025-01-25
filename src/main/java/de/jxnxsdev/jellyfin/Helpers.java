@@ -20,7 +20,6 @@ public class Helpers {
      * @return true if the URL is valid and reachable, false otherwise.
      */
     public static boolean validateURL(String url) {
-        System.out.println("Validating URL: " + url);
         try {
             HttpClient client = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(5))
@@ -34,12 +33,10 @@ public class Helpers {
             HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
 
             if (response.statusCode() != 200) {
-                System.out.println("Invalid URL: " + response.statusCode());
                 return false;
             }
             return true;
         } catch (IOException | InterruptedException e) {
-            System.out.println("Error validating URL: " + e.getMessage());
             return false;
         }
     }
