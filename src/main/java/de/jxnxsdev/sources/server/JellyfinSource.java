@@ -461,6 +461,8 @@ public class JellyfinSource implements IBoilerSource {
 
         UserItemsResponse userItemsResponse = User.getUserItemsShows(jsonObject.get("url").getAsString(), authenticateByNameResponse, viewId);
 
+        // TODO: Fix list ordering for every page
+
         if (userItemsResponse == null) {
             JLabel errorLabel = new JLabel("Failed to retrieve user items");
             errorLabel.setForeground(Color.RED);
