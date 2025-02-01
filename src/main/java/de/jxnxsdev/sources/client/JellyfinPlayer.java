@@ -55,6 +55,12 @@ public class JellyfinPlayer implements IBoilerSource {
     }
 
     @Override
+    public void onInput(String input) {
+        // Todo: Add player controls
+        
+    }
+
+    @Override
     public void unload() {
         if (ffmpegProcess != null) {
             ffmpegProcess.destroy();
